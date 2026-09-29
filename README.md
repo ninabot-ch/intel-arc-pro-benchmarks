@@ -6,6 +6,9 @@ LLMs at once, plus a catalogue of the failure modes we hit getting there.
 We run this hardware in production, so the numbers are from a working setup rather
 than a test bench — and the failure modes are the ones that actually cost us days.
 
+A readable summary of these numbers, with context on the machine behind them:
+[ninabot.ch/en/anchor/benchmarks](https://ninabot.ch/en/anchor/benchmarks/).
+
 > **Status:** B60 data only. B70 and Arc Pro B60 Dual measurements will be added to
 > this repo when we have the cards.
 
