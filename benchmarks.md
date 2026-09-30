@@ -42,7 +42,7 @@ Cold first call is 3–4× slower — see [failure mode 6](failure-modes.md#6-fi
 
 12 simultaneous requests, 4 per model, 300 tokens each:
 
-- **3 600 tokens in 30.3 s = 119 tok/s aggregate**
+- **3 600 tokens in 30.3 s = 119 tok/s aggregate** across three models totalling 130 B parameters
 - No errors, and no model degraded another — the cards are isolated
 
 ### Per-model scaling, and where it breaks

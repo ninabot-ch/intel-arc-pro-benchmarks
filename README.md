@@ -45,7 +45,7 @@ Three MoE models resident simultaneously, one per card (the 80B spans two):
 | gpt-oss-20b | MXFP4 · vLLM-XPU | 13 GB | **41.2 tok/s** |
 | Qwen3-Next-80B-A3B | GGUF Q3_K_XL · llama.cpp SYCL | 35.6 GB | **36.2 tok/s** |
 
-**119 tok/s aggregate** across all three under 12 concurrent requests, 211 W peak for
+**119 tok/s aggregate** across all three (130 B parameters combined) under 12 concurrent requests, 211 W peak for
 the four cards. Full detail and caveats in [`benchmarks.md`](benchmarks.md).
 
 ## Corrections we've published
