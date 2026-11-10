@@ -16,6 +16,13 @@ Each model runs in its own container, pinned to specific cards with
 device and has taken the host down for us. There is no measurable decode benefit on
 this hardware to justify the risk.
 
+> **Correction, 2026-11-11.** That paragraph holds for the vLLM 0.21 image and the
+> single-card MoE model above. It does **not** hold for vLLM 0.32.0 serving a dense 27B
+> in tensor parallel: there `--enforce-eager` cost most of the decode rate (7.2–8.0 vs
+> 27.3 tok/s on one stream at TP=4), and the compile pass finished in 93–94 s without
+> the memory runaway, under `cpus: 12` and a 26 GiB limit. Details in
+> [`tensor-parallel-27b.md`](tensor-parallel-27b.md#why-not---enforce-eager).
+
 Container guardrails, which we recommend reproducing:
 
 ```yaml
@@ -72,3 +79,7 @@ python3 scripts/bench_config_e.py
 
 Nothing in it is specific to our hardware beyond those endpoints — it will work against
 any OpenAI-compatible server.
+
+The tensor-parallel runs of November 2026 used a different, smaller set of scripts in
+[`scripts/tp27/`](scripts/tp27/); their method is described in
+[`tensor-parallel-27b.md`](tensor-parallel-27b.md#results).

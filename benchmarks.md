@@ -106,8 +106,9 @@ telemetry. It excludes CPU and the rest of the system.
 
 ## What we have not measured
 
-- Tensor parallel, at any size — blocked, see
-  [failure mode 3](failure-modes.md#3-oneccl-cannot-exchange-ipc-handles-between-workers-tensor-parallel-blocker)
+- ~~Tensor parallel, at any size~~ — measured on 2026-11-10/11 with vLLM 0.32, see
+  [`tensor-parallel-27b.md`](tensor-parallel-27b.md). The figures on this page predate
+  it and are all single-card or llama.cpp layer-split.
 - Arc Pro B70 (BMG-G31) — no cards yet
 - Arc Pro B60 Dual — no cards yet
 - Long-context behaviour beyond 64k

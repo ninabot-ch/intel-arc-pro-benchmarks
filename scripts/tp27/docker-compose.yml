@@ -1,0 +1,53 @@
+# Qwen3.8-27B on 4x Arc Pro B60, vLLM 0.32.0 XPU, tensor parallel.
+# Public copy of the compose file used for the 2026-11-10/11 runs: host-specific paths, port bindings and
+# comments were removed, nothing else. See ../../tensor-parallel-27b.md for what each line is for.
+#
+#   MODELS=/path/to/hf-models docker compose up -d                       # INT4, TP=4, MTP 2 (last configuration measured)
+#   MODELDIR=qwen3.8-27b-fp8 SPEC= docker compose up -d                  # FP8, no speculative decoding
+#   SPEC= SEQS=64 docker compose up -d                                   # INT4 without MTP (the 64-stream run)
+#
+# The image is built from the vLLM v0.32.0 tag:  docker build -f docker/Dockerfile.xpu -t vllm-xpu:0.32.0 .
+services:
+  vllm-27b:
+    image: vllm-xpu:0.32.0
+    container_name: vllm-27b
+    restart: "no"
+    devices:
+      - /dev/dri:/dev/dri
+    shm_size: 16g
+    cap_add:
+      - SYS_PTRACE                 # pidfd_getfd, needed by CCL_ZE_IPC_EXCHANGE=pidfd
+    security_opt:
+      - seccomp:unconfined         # same reason
+    mem_limit: 26g
+    memswap_limit: 26g             # equal to mem_limit: clean OOM instead of a host swap storm
+    cpus: 12
+    volumes:
+      - ${MODELS:?set MODELS to the directory holding the model folders}:/models:ro
+      - /dev/dri/by-path:/dev/dri/by-path
+      # patched copy of vllm/v1/executor/multiproc_executor.py (v0.32.0 + one-device-per-worker.patch).
+      # Mount it over the site-packages copy: that is the one `vllm serve` executes, not /workspace/vllm.
+      - ./multiproc_executor.py:/opt/venv/lib/python3.12/site-packages/vllm/v1/executor/multiproc_executor.py:ro
+    ports:
+      - "127.0.0.1:8004:8000"
+    environment:
+      ZE_AFFINITY_MASK: "0,1,2,3"
+      CCL_ZE_IPC_EXCHANGE: pidfd
+      VLLM_WORKER_MULTIPROC_METHOD: spawn
+      CCL_TOPO_P2P_ACCESS: "0"
+      VLLM_XPU_ONE_DEVICE_PER_WORKER: "1"   # read by the patch, not by upstream vLLM
+    command: >
+      /models/${MODELDIR:-qwen3.8-27b-int4}
+      --served-model-name qwen3.8-27b
+      --tensor-parallel-size 4
+      --host 0.0.0.0 --port 8000
+      --max-model-len ${CTX:-131072}
+      --max-num-seqs ${SEQS:-32}
+      --gpu-memory-utilization ${UTIL:-0.80}
+      --device-ids 0,1,2,3
+      --kv-cache-dtype fp8
+      ${SPEC---speculative-config.method mtp --speculative-config.num_speculative_tokens 2}
+      ${EXTRA-}
+      --enable-auto-tool-choice
+      --tool-call-parser qwen3_coder
+      --reasoning-parser qwen3

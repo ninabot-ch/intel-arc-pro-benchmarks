@@ -60,6 +60,10 @@ back to `drmfd` and then can't obtain a device fd.
 
 **Unresolved.** We have not yet run a clean tensor-parallel benchmark. See §4 for why.
 
+**Update 2026-11-11.** The `pidfd` route holds all the way: TP=2 and TP=4 ran on vLLM
+0.32.0 (oneCCL 2022.1.2) with `CCL_ZE_IPC_EXCHANGE=pidfd`, `SYS_PTRACE` and
+`seccomp:unconfined`. Results in [`tensor-parallel-27b.md`](tensor-parallel-27b.md).
+
 ## 4. Two processes on the same GPU wedge the host
 
 **Symptom.** Host becomes unreachable (SSH and ping both dead) for ~2 minutes, then
@@ -144,11 +148,37 @@ via `snd_hda_intel`, then unbind and rebind the GPU through the `xe` driver.
 Community measurements put SYCL at roughly 2.2× Vulkan for token generation on this
 class of hardware. Vulkan is a portability fallback, not a performance path.
 
+Our one Vulkan data point of our own (2026-11-10, a model we did not run on SYCL, so no
+comparison): see [`tensor-parallel-27b.md`](tensor-parallel-27b.md#qwen38-flash-next-on-llamacpp-vulkan).
+
+## 12. A vLLM worker that sees several cards mirrors its VRAM in host RAM
+
+**Symptom.** In tensor parallel, host `MemAvailable` falls by roughly the amount of VRAM
+the server allocates. The memory is charged neither to the container's cgroup nor to
+`Shmem`, so `mem_limit` does not contain it. On a 64 GB host, TP=4 at 42 % utilisation
+left 471 MiB available.
+
+**Workaround.** Start each worker with exactly one card in `ZE_AFFINITY_MASK`. That
+needs a small patch to vLLM's multiprocess executor
+([`scripts/tp27/one-device-per-worker.patch`](scripts/tp27/one-device-per-worker.patch)).
+With it, TP=4 at 80 % utilisation left 18 150 MiB available on the same host.
+
+**Cause.** Not established. Measurements and caveats in
+[`tensor-parallel-27b.md`](tensor-parallel-27b.md#one-visible-card-per-worker).
+
+## 13. `--enforce-eager` is not free on vLLM 0.32
+
+We recommended it for 0.21 (host safety, no measurable cost). On 0.32.0 with a dense
+27B in tensor parallel it held one stream at 7.2–8.0 tok/s where the compiled path gave
+27.3. See [`tensor-parallel-27b.md`](tensor-parallel-27b.md#why-not---enforce-eager).
+
 ---
 
 ## Still open
 
-- A clean tensor-parallel benchmark, on cards verified idle, using the `pidfd` route.
+- Cold prompt reading on vLLM XPU: roughly 700–950 tok/s on a dense 27B across four
+  cards, whatever the quantisation. Unexplained.
+- Why a multi-card worker mirrors VRAM in host RAM (§12), and an upstream fix for it.
 - Whether any of this differs on BMG-G31 (B70). We have no B70 data of our own, and
   published third-party B70 numbers on comparable MoE workloads are **lower** than our
   B60 figures — which we cannot currently explain.
